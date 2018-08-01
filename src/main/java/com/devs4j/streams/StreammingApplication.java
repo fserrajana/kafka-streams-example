@@ -12,24 +12,28 @@ import org.apache.kafka.streams.kstream.KStreamBuilder;
 import org.apache.kafka.streams.kstream.KTable;
 
 public class StreammingApplication {
-	public static void main(String[] args) {
+
+	public static Properties getKafkaConfiguration() {
 		Properties props = new Properties();
 		props.put(StreamsConfig.APPLICATION_ID_CONFIG, "stream-app");
 		props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "127.0.0.1:9092");
 		props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
 		props.put(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.String().getClass());
 		props.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, Serdes.String().getClass());
+		return props;
+	}
 
+	public static void main(String[] args) {
 		KStreamBuilder builder = new KStreamBuilder();
 
 		KStream<String, String> wordCountsInput = builder.stream("input-topic");
 		KTable<String, Long> counts = wordCountsInput.mapValues(String::toLowerCase)
 				.flatMapValues(value -> Arrays.asList(value.split(" "))).selectKey((ignoredKey, word) -> word)
-				.groupByKey().count("Counts");
+				.groupByKey().count();
 
 		counts.to(Serdes.String(), Serdes.Long(), "output-topic");
 
-		KafkaStreams streams = new KafkaStreams(builder, props);
+		KafkaStreams streams = new KafkaStreams(builder, getKafkaConfiguration());
 		streams.start();
 		Runtime.getRuntime().addShutdownHook(new Thread(streams::close));
 	}
